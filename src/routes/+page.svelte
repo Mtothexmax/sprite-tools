@@ -16,6 +16,20 @@
 		fileInput.click();
 	}
 
+	async function pasteFromClipboard() {
+		try {
+			const items = await navigator.clipboard.read();
+			for (const item of items) {
+				const blob = await item.getType('image/png').catch(() => null) || await item.getType('image/webp').catch(() => null);
+				if (!blob) continue;
+				const el = new Image();
+				el.onload = () => { img = el; hasImage = true; labels = []; };
+				el.src = URL.createObjectURL(blob);
+				return;
+			}
+		} catch {}
+	}
+
 	function onFileSelected() {
 		const f = fileInput.files?.[0];
 		if (!f) return;
@@ -41,6 +55,11 @@
 				<span class="material-icons text-sm">folder_open</span>
 			{/if}
 			Open Image
+		</button>
+		<button onclick={pasteFromClipboard}
+			class="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm bg-blue-700 hover:bg-blue-600 cursor-pointer transition-colors">
+			<span class="material-icons text-sm">content_paste</span>
+			From Clipboard
 		</button>
 		<span class="w-px h-5 bg-neutral-600"></span>
 		<button
@@ -75,7 +94,7 @@
 
 	<main class="flex-1 p-4 min-h-0 overflow-hidden">
 		<div class="h-full {activeTab !== 'background' ? 'hidden' : ''}">
-			<BackgroundRemover bind:img bind:hasImage />
+			<BackgroundRemover bind:img bind:labels bind:hasImage />
 		</div>
 		<div class="h-full {activeTab !== 'labeler' ? 'hidden' : ''}">
 			<SpriteLabeler bind:img bind:labels bind:hasImage />

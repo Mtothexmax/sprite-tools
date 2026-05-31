@@ -298,6 +298,13 @@
 		if (e.key === 'Escape') {
 			if (isDrawing) { isDrawing = false; updateCursor(); }
 			if (resizeState) { resizeState = null; }
+			if (moveState) {
+				const nl = [...labels];
+				nl[moveState.idx] = { ...moveState.label };
+				labels = nl;
+				moveState = null;
+				redraw();
+			}
 		}
 	}
 
@@ -392,7 +399,7 @@
 			if (selectedIdx === hit) selectedIdx = -1;
 			else if (selectedIdx > hit) selectedIdx--;
 		}
-		const box = floodFillAt(Math.round(p.x), Math.round(p.y));
+		const box = floodFillAt(Math.floor(p.x), Math.floor(p.y));
 		if (box) {
 			labels = [...labels, { name: `sprite${labels.length + 1}`, ...box }];
 			selectedIdx = labels.length - 1;
@@ -435,7 +442,19 @@
 		}
 
 		boxes.sort((a, b) => a.y1 - b.y1 || a.x1 - b.x1);
-		labels = boxes.map((b, i) => ({ name: `label ${i + 1}`, x: b.x1, y: b.y1, width: b.x2 - b.x1 + 1, height: b.y2 - b.y1 + 1 }));
+		const rows: Box[][] = [];
+		const rowH = boxes.length > 0 ? boxes.reduce((s, b) => s + (b.y2 - b.y1), 0) / boxes.length : 16;
+		for (const b of boxes) {
+			let placed = false;
+			for (const r of rows) {
+				if (Math.abs(b.y1 - r[0].y1) <= rowH * 0.5) { r.push(b); placed = true; break; }
+			}
+			if (!placed) rows.push([b]);
+		}
+		for (const r of rows) r.sort((a, b) => a.x1 - b.x1);
+		const sorted = rows.flat();
+		const pad = String(sorted.length).length;
+		labels = sorted.map((b, i) => ({ name: `label ${String(i + 1).padStart(pad, '0')}`, x: b.x1, y: b.y1, width: b.x2 - b.x1 + 1, height: b.y2 - b.y1 + 1 }));
 		selectedIdx = -1;
 		redraw();
 	}
@@ -461,6 +480,12 @@
 	}
 
 	function toggleLabelNames() { showLabelNames = !showLabelNames; redraw(); }
+
+	function resetLabels() {
+		labels = []; selectedIdx = -1; selectedSet = new Set();
+		zoom = 1; panX = 0; panY = 0;
+		redraw();
+	}
 
 	function mergeLabels() {
 		if (selectedSet.size < 2) return;
@@ -509,11 +534,15 @@
 		</button>
 		<button onclick={mergeLabels} disabled={selectedSet.size < 2}
 			class="flex items-center gap-1 px-3 py-1.5 bg-neutral-700 hover:bg-neutral-600 rounded text-sm disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
-			<span class="material-icons text-sm">combine_columns</span> Merge
+			<span class="material-icons text-sm">merge_type</span> Merge
 		</button>
 		{#if hasImage}
 			<span class="text-xs text-neutral-400 ml-2">{labels.length} region{labels.length !== 1 ? 's' : ''}</span>
 			<span class="text-xs text-neutral-600">{Math.round(zoom * 100)}%</span>
+			<button onclick={resetLabels}
+				class="flex items-center gap-1 px-3 py-1.5 bg-neutral-700 hover:bg-neutral-600 rounded text-sm cursor-pointer">
+				<span class="material-icons text-sm">restart_alt</span> Reset
+			</button>
 		{/if}
 	</div>
 
@@ -618,7 +647,11 @@
 							role="button" tabindex="0"
 							onkeydown={(e) => e.key === 'Enter' && selectLabel(i)}
 						>
-							<div class="w-20 h-24 bg-neutral-950 rounded border border-neutral-600 flex items-center justify-center overflow-hidden">
+							<div class="relative w-20 h-24 bg-neutral-950 rounded border border-neutral-600 flex items-center justify-center overflow-hidden">
+								<button onclick={(e) => { e.stopPropagation(); removeLabel(i); }}
+									class="absolute top-0.5 right-0.5 text-neutral-500 hover:text-red-400 cursor-pointer z-10" title="Delete">
+									<span class="material-icons text-xs">close</span>
+								</button>
 								<div
 									style="width:{label.width * s}px;height:{label.height * s}px;background-image:url({img?.src});background-repeat:no-repeat;background-position:{(-label.x * s).toFixed(0)}px {(-label.y * s).toFixed(0)}px;background-size:{(img?.naturalWidth ?? 1) * s}px {(img?.naturalHeight ?? 1) * s}px;"
 								></div>
