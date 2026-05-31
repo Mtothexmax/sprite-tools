@@ -398,6 +398,22 @@
 		document.addEventListener('mouseup', rectDocUp);
 	}
 
+	function cancelRect() {
+		if (!rectDragging) return;
+		rectDragging = false;
+		clearLasso();
+		rectStart = null; rectEnd = null;
+		if (rectDocMove) { document.removeEventListener('mousemove', rectDocMove); rectDocMove = null; }
+		if (rectDocUp) { document.removeEventListener('mouseup', rectDocUp); rectDocUp = null; }
+	}
+
+	$effect(() => {
+		if (!rectActive) return;
+		const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') cancelRect(); };
+		document.addEventListener('keydown', onKey);
+		return () => document.removeEventListener('keydown', onKey);
+	});
+
 	function copyImage() {
 		if (!canvas) return;
 		canvas.toBlob(b => {
@@ -799,8 +815,8 @@
 				onwheel={handleWheel}
 				onclick={handleCanvasClick}
 				onmousedown={(e) => { e.stopPropagation(); handleMD(e); }}
-				onmousemove={(e) => { e.stopPropagation(); handleMM(e); }}
-				onmouseup={(e) => { e.stopPropagation(); handleMU(e); }}
+				onmousemove={(e) => { if (rectActive && rectDragging) rectMM(e); e.stopPropagation(); handleMM(e); }}
+				onmouseup={(e) => { if (rectActive && rectDragging) rectFinish(); e.stopPropagation(); handleMU(e); }}
 				onmouseleave={(e) => { e.stopPropagation(); handleMU(e); }}
 				ondblclick={() => { if (lassoActive) closeLasso(); }}
 				aria-label="Background removal canvas"

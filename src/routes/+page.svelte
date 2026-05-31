@@ -3,6 +3,7 @@
 	import SpriteLabeler from '$lib/components/SpriteLabeler.svelte';
 	import AnimationEditor from '$lib/components/AnimationEditor.svelte';
 	import BackgroundRemover from '$lib/components/BackgroundRemover.svelte';
+	import TilePacker from '$lib/components/TilePacker.svelte';
 
 	let activeTab = $state('background');
 	let img = $state<HTMLImageElement | null>(null);
@@ -89,6 +90,15 @@
 			<span class="material-icons text-sm">play_circle</span>
 			Animation
 		</button>
+		<button
+			onclick={() => activeTab = 'packer'}
+			class="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm
+				{activeTab === 'packer' ? 'bg-neutral-700 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-750'}
+				cursor-pointer transition-colors"
+		>
+			<span class="material-icons text-sm">grid_view</span>
+			Tile Packer
+		</button>
 		<span class="ml-auto text-xs text-neutral-600">sprite-tools</span>
 	</nav>
 
@@ -101,6 +111,9 @@
 		</div>
 		<div class="h-full {activeTab !== 'animation' ? 'hidden' : ''}">
 			<AnimationEditor bind:img bind:labels bind:hasImage />
+		</div>
+		<div class="h-full {activeTab !== 'packer' ? 'hidden' : ''}">
+			<TilePacker />
 		</div>
 	</main>
 

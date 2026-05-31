@@ -36,6 +36,7 @@
 	let panX = $state(0), panY = $state(0);
 	let showLabelNames = $state(false);
 	let galleryView = $state(false);
+	let galleryZoom = $state(1);
 	let resizeState: ResizeState | null = $state(null);
 	let moveState: { idx: number; startMX: number; startMY: number; label: SpriteLabel } | null = $state(null);
 	let hoverOverSelected = $state(false);
@@ -93,7 +94,7 @@
 	}
 
 	function redraw() {
-		if (!ctx || !img || !checkerPattern) return;
+		if (!ctx || !img || !checkerPattern || !canvasEl) return;
 		ctx.fillStyle = checkerPattern;
 		ctx.fillRect(0, 0, canvasEl.width, canvasEl.height);
 		ctx.drawImage(img, 0, 0);
@@ -633,21 +634,27 @@
 			{/if}
 		</div>
 	{:else}
-		<div class="flex-1 overflow-y-auto">
+		<div class="flex-1 overflow-y-auto"
+			onwheel={(e) => { if (labels.length > 0) { e.preventDefault(); const d = -e.deltaY * 0.001; galleryZoom = Math.max(0.25, Math.min(6, galleryZoom * (1 + d))); } }}
+		>
 			{#if labels.length === 0}
 				<p class="text-xs text-neutral-500 text-center py-16">No labels yet.</p>
 			{:else}
 				<div class="flex flex-wrap gap-3 justify-center p-2">
 					{#each sortedIndices as i (labels[i])}
 						{@const label = labels[i]}
-						{@const s = img ? Math.min(80 / label.width, 96 / label.height) : 1}
+						{@const gw = 80 * galleryZoom}
+						{@const gh = 96 * galleryZoom}
+						{@const s = img ? Math.min(gw / label.width, gh / label.height) : 1}
 						<div
 							class="flex flex-col items-center gap-1.5 p-2 rounded cursor-pointer {selectedSet.has(i) ? 'bg-neutral-700 ring-2 ring-green-500' : 'bg-neutral-800 hover:bg-neutral-750'}"
 							onclick={(e) => { if (e.shiftKey) { const ns = new Set(selectedSet); if (ns.has(i)) ns.delete(i); else ns.add(i); selectedSet = ns; selectedIdx = i; redraw(); } else { selectLabel(i); } }}
 							role="button" tabindex="0"
 							onkeydown={(e) => e.key === 'Enter' && selectLabel(i)}
 						>
-							<div class="relative w-20 h-24 bg-neutral-950 rounded border border-neutral-600 flex items-center justify-center overflow-hidden">
+							<div class="relative bg-neutral-950 rounded border border-neutral-600 flex items-center justify-center overflow-hidden"
+								style="width:{gw}px;height:{gh}px"
+							>
 								<button onclick={(e) => { e.stopPropagation(); removeLabel(i); }}
 									class="absolute top-0.5 right-0.5 text-neutral-500 hover:text-red-400 cursor-pointer z-10" title="Delete">
 									<span class="material-icons text-xs">close</span>
@@ -659,9 +666,11 @@
 							{#if editIdx === i}
 								<input type="text" bind:value={editNameVal} onblur={commitEdit}
 									onkeydown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') commitEdit(); }}
-									class="w-20 bg-neutral-900 border border-neutral-600 rounded px-1 py-0.5 text-xs outline-none text-center" use:autoFocus />
+									class="bg-neutral-900 border border-neutral-600 rounded px-1 py-0.5 text-xs outline-none text-center" use:autoFocus
+									style="width:{gw}px"
+								/>
 							{:else}
-								<span class="w-20 text-xs text-neutral-300 text-center truncate leading-tight" onclick={(e) => { e.stopPropagation(); selectLabel(i); startEdit(i); }} onkeydown={(e) => e.key === 'Enter' && (selectLabel(i), startEdit(i))} role="button" tabindex="-1">{label.name}</span>
+								<span class="text-xs text-neutral-300 text-center truncate leading-tight" onclick={(e) => { e.stopPropagation(); selectLabel(i); startEdit(i); }} onkeydown={(e) => e.key === 'Enter' && (selectLabel(i), startEdit(i))} role="button" tabindex="-1" style="width:{gw}px">{label.name}</span>
 							{/if}
 							<span class="text-[10px] text-neutral-500">{label.width}&times;{label.height}</span>
 						</div>
