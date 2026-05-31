@@ -467,9 +467,26 @@
 		redraw();
 	}
 
-	function selectLabel(idx: number) { selectedIdx = idx; redraw(); }
+	function selectLabel(idx: number) { selectedIdx = idx; selectedSet = new Set(); redraw(); }
 
 	function startEdit(idx: number) { editIdx = idx; editNameVal = labels[idx].name; }
+
+	let groupNameVal = $state('');
+	let showGroupInput = $state(false);
+
+	function startGroup() { showGroupInput = true; groupNameVal = ''; }
+
+	function commitGroup() {
+		const base = groupNameVal.trim();
+		if (!base || selectedSet.size < 2) { showGroupInput = false; return; }
+		const order = [...selectedSet].sort((a, b) => sortedIndices.indexOf(a) - sortedIndices.indexOf(b));
+		const pad = String(order.length).length;
+		const nl = [...labels];
+		order.forEach((idx, o) => { nl[idx] = { ...nl[idx], name: `${base}${String(o + 1).padStart(pad, '0')}` }; });
+		labels = nl;
+		showGroupInput = false;
+		redraw();
+	}
 
 	function commitEdit() {
 		if (editIdx >= 0 && editIdx < labels.length) {
@@ -537,6 +554,32 @@
 			class="flex items-center gap-1 px-3 py-1.5 bg-neutral-700 hover:bg-neutral-600 rounded text-sm disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
 			<span class="material-icons text-sm">merge_type</span> Merge
 		</button>
+		{#if galleryView && selectedSet.size >= 2}
+			{#if showGroupInput}
+				<input type="text" bind:value={groupNameVal} placeholder="group name"
+					onblur={commitGroup}
+					onkeydown={(e) => { if (e.key === 'Enter') commitGroup(); if (e.key === 'Escape') showGroupInput = false; }}
+					class="w-24 px-2 py-1.5 rounded bg-neutral-800 border border-neutral-600 text-white text-sm outline-none"
+					use:autoFocus
+				/>
+			{:else}
+				<button onclick={startGroup}
+					class="flex items-center gap-1 px-3 py-1.5 bg-neutral-700 hover:bg-neutral-600 rounded text-sm cursor-pointer">
+					<span class="material-icons text-sm">group_work</span> Group
+				</button>
+			{/if}
+		{/if}
+		{#if galleryView}
+			<button onclick={() => galleryZoom = Math.max(0.25, galleryZoom / 1.3)}
+				class="flex items-center justify-center w-7 h-7 rounded bg-neutral-700 hover:bg-neutral-600 text-sm cursor-pointer">
+				<span class="material-icons text-sm">remove</span>
+			</button>
+			<span class="text-xs text-neutral-600 w-10 text-center">{Math.round(galleryZoom * 100)}%</span>
+			<button onclick={() => galleryZoom = Math.min(6, galleryZoom * 1.3)}
+				class="flex items-center justify-center w-7 h-7 rounded bg-neutral-700 hover:bg-neutral-600 text-sm cursor-pointer">
+				<span class="material-icons text-sm">add</span>
+			</button>
+		{/if}
 		{#if hasImage}
 			<span class="text-xs text-neutral-400 ml-2">{labels.length} region{labels.length !== 1 ? 's' : ''}</span>
 			<span class="text-xs text-neutral-600">{Math.round(zoom * 100)}%</span>
@@ -634,13 +677,11 @@
 			{/if}
 		</div>
 	{:else}
-		<div class="flex-1 overflow-y-auto"
-			onwheel={(e) => { if (labels.length > 0) { e.preventDefault(); const d = -e.deltaY * 0.001; galleryZoom = Math.max(0.25, Math.min(6, galleryZoom * (1 + d))); } }}
-		>
+		<div class="flex-1 overflow-y-auto">
 			{#if labels.length === 0}
 				<p class="text-xs text-neutral-500 text-center py-16">No labels yet.</p>
 			{:else}
-				<div class="flex flex-wrap gap-3 justify-center p-2">
+				<div class="flex flex-wrap gap-3 justify-center p-2 select-none">
 					{#each sortedIndices as i (labels[i])}
 						{@const label = labels[i]}
 						{@const gw = 80 * galleryZoom}
